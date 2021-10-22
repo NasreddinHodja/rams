@@ -1,10 +1,10 @@
 use std::io;
 use std::io::prelude::*;
+use std::io::{Read, BufReader};
+use std::fs;
 use std::net::TcpStream;
 use std::path::Path;
 use ssh2::{Session, Error, Sftp};
-use std::io::{Read, BufReader};
-use std::fs;
 use glob::glob;
 
 use serde::{Serialize, Deserialize};
@@ -60,20 +60,26 @@ impl Sender {
             let remote_chapter_path = chapter_path.as_ref().unwrap().to_string_lossy();
             let split_path: Vec<&str> = remote_chapter_path.split("/").collect();
             let remote_chapter_path = format!("{}{}/", remote_path,
-                                              &split_path[split_path.len()-2..].join("/"));
-            sftp.mkdir(&Path::new(&remote_chapter_path), 0o644);
+                                              &split_path[split_path.len()-1]);
+            sftp.mkdir(&Path::new(&remote_chapter_path), 0o644)
+                .expect(&format!("failed to create directory {}", remote_chapter_path));
 
             for path in fs::read_dir(chapter_path.unwrap()).unwrap() {
                 let local_path = String::from(path.unwrap().path().to_string_lossy());
                 let split_path: Vec<&str> = local_path.split("/").collect();
-                let chapter_path = &split_path[split_path.len()-2..].join("/");
+                let chapter_path = &split_path[split_path.len()-3..].join("/");
                 let remote_path = format!("{}{}", self.destination, chapter_path);
 
+                // read local file
                 let local_file = fs::File::open(local_path).unwrap();
                 let mut reader = BufReader::new(local_file);
                 let mut buffer = Vec::new();
-                reader.read_to_end(&mut buffer).unwrap();
+                reader.read_to_end(&mut buffer)
+                      .expect(&format!("couldn't read local {} file to buffer",
+                                      chapter_path));
 
+                println!("{}", remote_path);
+                // write remote file
                 let mut remote_file = sftp.create(&Path::new(&remote_path)).unwrap();
                 remote_file.write(&buffer);
             }
@@ -96,14 +102,18 @@ impl Sender {
         sess.handshake().unwrap();
         sess.userauth_password(&self.username, &self.password).unwrap();
 
+        // open sftp
         let sftp = sess.sftp().unwrap();
 
         let local_path = format!("{}{}/",
                                  self.source, manga_name);
         let remote_path = format!("{}{}/",
                                   self.destination, manga_name);
-        sftp.mkdir(&Path::new(&remote_path), 0o644);
+        // make remote dir for manga if non existant
+        sftp.mkdir(&Path::new(&remote_path), 0o644)
+            .expect(&format!("failed to create directory {}", remote_path));
 
+        // send each chapter
         for i in start_chapter..(end_chapter+1) {
             self.send_chapter(&local_path, &remote_path, i,&sftp);
         }
