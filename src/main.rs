@@ -25,13 +25,29 @@ fn main() {
              .help("start manga chapter"))
         .get_matches();
 
+    let s = Sender::new();
+
     let manga = matches.value_of("MANGA").unwrap();
-    let start = matches.value_of("start").unwrap();
-    let end = matches.value_of("end").unwrap();
+    if let Some(start) = matches.value_of("start") {
+        if let Some(end) = matches.value_of("end") {
+            println!("Sending {} -- chapters {} through {}",
+                    manga, start, end);
+            s.send(manga,
+                   start.parse::<u32>().unwrap(),
+                   end.parse::<u32>().unwrap())
+             .unwrap();
+        } else {
+            println!("Sending {} -- chapter {}", manga, start);
+            s.send(manga,
+                   start.parse::<u32>().unwrap(),
+                   start.parse::<u32>().unwrap())
+             .unwrap();
+        };
+    } else {
+        println!("Sending {} all chapters", manga);
+        s.send(manga, 0, 0).unwrap();
+    };
 
-    println!("Sending {} chapters {} through {}",
-             manga, start, end);
 
-    // let s = Sender::new();
     // s.send("chainsaw_man", 1, 97);
 }

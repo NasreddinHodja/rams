@@ -57,19 +57,25 @@ impl Sender {
         let chapter_paths = glob(&path).unwrap();
 
         for chapter_path in chapter_paths {
-            let remote_chapter_path = chapter_path.as_ref().unwrap().to_string_lossy();
-            let split_path: Vec<&str> = remote_chapter_path.split("/").collect();
-            let remote_chapter_path = format!("{}{}/", remote_path,
-                                              &split_path[split_path.len()-1]);
+            let remote_chapter_path =
+                chapter_path.as_ref().unwrap().to_string_lossy();
+            let split_path: Vec<&str> =
+                remote_chapter_path.split("/").collect();
+            let remote_chapter_path =
+                format!("{}{}/", remote_path,
+                                 &split_path[split_path.len()-1]);
             sftp.mkdir(&Path::new(&remote_chapter_path), 0o644)
-                .expect(&format!("failed to create directory {}", remote_chapter_path));
+                .expect(&format!("failed to create directory {}",
+                                 remote_chapter_path));
 
             println!("{}", remote_chapter_path);
             for path in fs::read_dir(chapter_path.unwrap()).unwrap() {
-                let local_path = String::from(path.unwrap().path().to_string_lossy());
+                let local_path =
+                    String::from(path.unwrap().path().to_string_lossy());
                 let split_path: Vec<&str> = local_path.split("/").collect();
                 let chapter_path = &split_path[split_path.len()-3..].join("/");
-                let remote_path = format!("{}{}", self.destination, chapter_path);
+                let remote_path = format!("{}{}", self.destination,
+                                          chapter_path);
 
                 // read local file
                 let local_file = fs::File::open(local_path).unwrap();
@@ -80,7 +86,8 @@ impl Sender {
                                       chapter_path));
 
                 // write remote file
-                let mut remote_file = sftp.create(&Path::new(&remote_path)).unwrap();
+                let mut remote_file =
+                    sftp.create(&Path::new(&remote_path)).unwrap();
                 remote_file.write(&buffer).unwrap();
             }
         }
@@ -110,12 +117,30 @@ impl Sender {
         let remote_path = format!("{}{}/",
                                   self.destination, manga_name);
         // make remote dir for manga if non existant
-        sftp.mkdir(&Path::new(&remote_path), 0o644)
-            .expect(&format!("failed to create directory {}", remote_path));
+        match sftp.mkdir(&Path::new(&remote_path), 0o644) {
+            Ok(_) => {},
+            Err(_) => {},
+        };
 
-        // send each chapter
-        for i in start_chapter..(end_chapter+1) {
-            self.send_chapter(&local_path, &remote_path, i,&sftp).unwrap();
+        // panic!("implement send whole manga");
+        if start_chapter == 0 && end_chapter == 0 {
+            // send whole manga
+            let chapters_glob = String::from(&local_path) + "chapter_*/".into();
+            for chap in glob(&chapters_glob).unwrap() {
+                let chap_str = chap.unwrap()
+                    .into_os_string().into_string().unwrap();
+                let chap_str = chap_str .split("-").collect::<Vec<&str>>()[0];
+                let chap_num: u32 = chap_str .split("_").last().unwrap()
+                    .parse().unwrap();
+                self.send_chapter(&local_path, &remote_path, chap_num, &sftp)
+                    .unwrap()
+            }
+            return Ok(());
+        } else {
+            // send chapters
+            for i in start_chapter..(end_chapter+1) {
+                self.send_chapter(&local_path, &remote_path, i,&sftp).unwrap();
+            }
         }
 
         Ok(())
