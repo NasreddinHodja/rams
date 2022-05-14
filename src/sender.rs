@@ -34,7 +34,7 @@ impl Sender {
         }
     }
 
-    pub fn update_config(mut self) {
+    pub fn update_config(&mut self) {
         let cfg = SenderConfig::from_input();
 
         self.host = cfg.host;
@@ -122,7 +122,6 @@ impl Sender {
             Err(_) => {},
         };
 
-        // panic!("implement send whole manga");
         if start_chapter == 0 && end_chapter == 0 {
             // send whole manga
             let chapters_glob = String::from(&local_path) + "chapter_*/".into();

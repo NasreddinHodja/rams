@@ -47,7 +47,4 @@ fn main() {
         println!("Sending {} all chapters", manga);
         s.send(manga, 0, 0).unwrap();
     };
-
-
-    // s.send("chainsaw_man", 1, 97);
 }
