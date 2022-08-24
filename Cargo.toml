@@ -11,3 +11,5 @@ confy = { version = "0.4" }
 glob = { version = "0.3" }
 serde = { version = "1.0", features = ["derive"] }
 clap = { version = "2.33" }
+libpasta = "0.1.2"
+rpassword = "6.0.0"
